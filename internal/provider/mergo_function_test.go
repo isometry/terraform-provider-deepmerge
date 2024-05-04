@@ -22,7 +22,6 @@ func TestMergoFunction_Default(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				// ConfigFile: config.StaticFile("main.tf"),
 				Config: `
 				locals {
 					map1 = {
@@ -85,6 +84,56 @@ func TestMergoFunction_Default(t *testing.T) {
 									}),
 								}),
 							}),
+						}),
+					),
+				},
+			},
+			{
+				Config: `
+				locals {
+					map1 = {
+						a = null
+						b = "foo"
+					}
+					map2 = {
+						a = "bar"
+						b = "baz"
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.map1, local.map2)
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"a": knownvalue.StringExact("bar"),
+							"b": knownvalue.StringExact("baz"),
+						}),
+					),
+				},
+			},
+			{
+				Config: `
+				locals {
+					map1 = {
+						a = "foo"
+						b = "bar"
+					}
+					map2 = {
+						a = null
+						b = "bam"
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.map1, local.map2)
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"a": knownvalue.Null(),
+							"b": knownvalue.StringExact("bam"),
 						}),
 					),
 				},

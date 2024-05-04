@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"dario.cat/mergo"
@@ -14,11 +13,12 @@ import (
 func Mergo(ctx context.Context, objs []types.Dynamic, opts ...func(*mergo.Config)) (merged types.Dynamic, diags diag.Diagnostics) {
 	maps := make([]map[string]any, len(objs))
 	for i, obj := range objs {
-		// TODO: don't rely on String encoding
-		if err := json.Unmarshal([]byte(obj.String()), &maps[i]); err != nil {
-			diags.Append(diag.NewErrorDiagnostic(fmt.Sprintf("Error unmarshalling argument %d", i+1), err.Error()))
+		x, err := EncodeValue(obj)
+		if err != nil {
+			diags.Append(diag.NewErrorDiagnostic(fmt.Sprintf("Error encoding argument %d", i+1), err.Error()))
 			return
 		}
+		maps[i] = x.(map[string]any)
 	}
 
 	dst := maps[0]

@@ -61,12 +61,6 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 			return
 		}
 		value := arg.UnderlyingValue()
-		// if value.IsNull() {
-		// 	// skip null values
-		// 	resp.Error = function.NewArgumentFuncError(int64(i), "argument must not be null")
-		// 	return
-		// 	// continue
-		// }
 		switch ty := value.Type(ctx); ty {
 		case types.StringType:
 			switch option := arg.String(); option {
