@@ -1,13 +1,14 @@
 module github.com/isometry/terraform-provider-deepmerge
 
 go 1.21
+toolchain go1.22.5
 
 require (
 	dario.cat/mergo v1.0.1
 	github.com/hashicorp/go-version v1.7.0
 	github.com/hashicorp/terraform-plugin-docs v0.19.4
 	github.com/hashicorp/terraform-plugin-framework v1.11.0
-	github.com/hashicorp/terraform-plugin-go v0.23.0
+	github.com/hashicorp/terraform-plugin-go v0.24.0
 	github.com/hashicorp/terraform-plugin-testing v1.10.0
 )
 
