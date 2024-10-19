@@ -10,6 +10,13 @@ description: |-
 
 `mergo` takes an arbitrary number of maps or objects, and returns a single map or object that contains a recursively merged set of elements from all arguments.
 
+By default, values in later arguments override those in earlier arguments, in accordance with standard `mergo` semantics. The merge behaviour can be adjusted by passing additional string arguments to the function:
+
+* `"override"` or `"replace"` (default): New values override existing values.
+* `"no_override"`: New values do not override existing values.
+* `"no_null_override"`: Explicit null values do not override existing values.
+* `"append"` or `"append_lists"`: Append list values instead of replacing them.
+
 
 
 ## Signature
