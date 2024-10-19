@@ -5,6 +5,7 @@ package provider
 
 import (
 	"context"
+	"reflect"
 
 	"dario.cat/mergo"
 	"github.com/hashicorp/terraform-plugin-framework/function"
@@ -54,6 +55,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	objs := make([]types.Dynamic, 0)
 	opts := make([]func(*mergo.Config), 0)
 	with_override := true
+	no_null_override := false
 
 	for i, arg := range args {
 		if arg.IsNull() {
@@ -66,6 +68,8 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 			switch option := arg.String(); option {
 			case `"no_override"`:
 				with_override = false
+			case `"no_null_override"`:
+				no_null_override = true
 			case `"override"`, `"replace"`:
 				with_override = true
 			case `"append"`, `"append_lists"`:
@@ -88,6 +92,10 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 		opts = append(opts, mergo.WithOverride)
 	}
 
+	if no_null_override {
+		opts = append(opts, mergo.WithTransformers(noNullOverrideTransformer{}))
+	}
+
 	merged, diags := helpers.Mergo(ctx, objs, opts...)
 	if diags.HasError() {
 		resp.Error = function.FuncErrorFromDiags(ctx, diags)
@@ -95,4 +103,45 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	}
 
 	resp.Error = function.ConcatFuncErrors(resp.Result.Set(ctx, &merged))
+}
+
+type noNullOverrideTransformer struct {
+}
+
+func (t noNullOverrideTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+	if typ.Kind() == reflect.Map {
+		return func(dst, src reflect.Value) error {
+			deepMergeMaps(dst, src)
+			return nil
+		}
+	}
+	return nil
+}
+
+func deepMergeMaps(dst, src reflect.Value) reflect.Value {
+	for _, key := range src.MapKeys() {
+		srcElem := src.MapIndex(key)
+		dstElem := dst.MapIndex(key)
+
+		// Unwrap the interfaces of srcElem and dstElem
+		if srcElem.Kind() == reflect.Interface {
+			srcElem = srcElem.Elem()
+		}
+
+		if dstElem.Kind() == reflect.Interface {
+			dstElem = dstElem.Elem()
+		}
+
+		if srcElem.Kind() == reflect.Map && dstElem.Kind() == reflect.Map {
+			// recursive call
+			newValue := deepMergeMaps(dstElem, srcElem)
+			dst.SetMapIndex(key, newValue)
+		} else {
+			if !srcElem.IsValid() { // skip override of nil values
+				continue
+			}
+			dst.SetMapIndex(key, srcElem)
+		}
+	}
+	return dst
 }
