@@ -340,7 +340,7 @@ func TestMergoFunction_NoOverrideWithNull(t *testing.T) {
 					}
 				}
 				output "test" {
-					value = provider::deepmerge::mergo(local.map1, local.map2, "without_null_override")
+					value = provider::deepmerge::mergo(local.map1, local.map2, "no_null_override")
 				}
 				`,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -363,7 +363,7 @@ func TestMergoFunction_NoOverrideWithNull(t *testing.T) {
 					}
 				}
 				output "test" {
-					value = provider::deepmerge::mergo(local.map1, local.map2, "without_null_override")
+					value = provider::deepmerge::mergo(local.map1, local.map2, "no_null_override")
 				}
 				`,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -410,7 +410,7 @@ func TestMergoFunction_NoOverrideWithNull(t *testing.T) {
 					}
 				}
 				output "test" {
-					value = provider::deepmerge::mergo(local.map1, local.map2, local.map3, "without_null_override")
+					value = provider::deepmerge::mergo(local.map1, local.map2, local.map3, "no_null_override")
 				}
 				`,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -455,7 +455,7 @@ func TestMergoFunction_NoOverrideWithNull(t *testing.T) {
 					}
 				}
 				output "test" {
-					value = provider::deepmerge::mergo(local.map1, local.map2, "without_null_override")
+					value = provider::deepmerge::mergo(local.map1, local.map2, "no_null_override")
 				}
 				`,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -480,7 +480,7 @@ func TestMergoFunction_NoOverrideWithNull(t *testing.T) {
 					}
 				}
 				output "test" {
-					value = provider::deepmerge::mergo(local.map1, local.map2, "without_null_override")
+					value = provider::deepmerge::mergo(local.map1, local.map2, "no_null_override")
 				}
 				`,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -527,7 +527,7 @@ func TestMergoFunction_NoOverrideWithNull(t *testing.T) {
 					}
 				}
 				output "test" {
-					value = provider::deepmerge::mergo(local.map1, local.map2, local.map3, "without_null_override")
+					value = provider::deepmerge::mergo(local.map1, local.map2, local.map3, "no_null_override")
 				}
 				`,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -581,8 +581,8 @@ func TestMergoFunction_NoOverrideWithNull(t *testing.T) {
 					map2 = {
 						x1 = {
 							y2 = {
-								z3 = 3
 								z2 = null
+								z3 = 3
 							}
 							y2 = "bar"
 						}
@@ -624,7 +624,7 @@ func TestMergoFunction_NoOverrideWithNull(t *testing.T) {
 					}
 				}
 				output "test" {
-					value = provider::deepmerge::mergo(local.map1, local.map2, local.map3, local.map4, local.map5, "without_null_override")
+					value = provider::deepmerge::mergo(local.map1, local.map2, local.map3, local.map4, local.map5, "no_null_override")
 				}
 				`,
 				ConfigStateChecks: []statecheck.StateCheck{

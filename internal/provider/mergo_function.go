@@ -55,7 +55,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	objs := make([]types.Dynamic, 0)
 	opts := make([]func(*mergo.Config), 0)
 	with_override := true
-	without_null_override := false
+	no_null_override := false
 
 	for i, arg := range args {
 		if arg.IsNull() {
@@ -68,8 +68,8 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 			switch option := arg.String(); option {
 			case `"no_override"`:
 				with_override = false
-			case `"without_null_override"`:
-				without_null_override = true
+			case `"no_null_override"`:
+				no_null_override = true
 			case `"override"`, `"replace"`:
 				with_override = true
 			case `"append"`, `"append_lists"`:
@@ -92,7 +92,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 		opts = append(opts, mergo.WithOverride)
 	}
 
-	if without_null_override {
+	if no_null_override {
 		opts = append(opts, mergo.WithTransformers(noNullOverrideTransformer{}))
 	}
 
