@@ -13,7 +13,9 @@ import (
 )
 
 func EncodeValue(v attr.Value) (any, error) {
-	if v.IsNull() {
+	// Avoid nil pointer deref with broken OpenTofu custom function
+	// implementation that passes unknown values as zero values.
+	if v == nil || v.IsNull() {
 		return nil, nil
 	}
 
