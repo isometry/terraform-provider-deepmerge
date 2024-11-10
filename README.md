@@ -1,3 +1,6 @@
+[![CodeQL](https://github.com/isometry/terraform-provider-deepmerge/actions/workflows/codeql.yml/badge.svg)](https://github.com/isometry/terraform-provider-deepmerge/actions/workflows/codeql.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/isometry/terraform-provider-deepmerge)](https://goreportcard.com/report/github.com/isometry/terraform-provider-deepmerge)
+
 # Terraform Provider Deepmerge
 
 Deepmerge functions for Terraform 1.8+.
