@@ -32,18 +32,27 @@ func (r MergoFunction) Definition(_ context.Context, _ function.DefinitionReques
 	resp.Definition = function.Definition{
 		Summary:             "Deepmerge of maps with mergo semantics",
 		MarkdownDescription: "`mergo` takes an arbitrary number of maps or objects, and returns a single map or object that contains a recursively merged set of elements from all arguments.\n\nBy default, values in later arguments override those in earlier arguments, in accordance with standard `mergo` semantics. The merge behaviour can be adjusted by passing additional string arguments to the function:\n\n* `\"override\"` or `\"replace\"` (default): New values override existing values.\n* `\"no_override\"`: New values do not override existing values.\n* `\"no_null_override\"`: Explicit null values do not override existing values.\n* `\"append\"` or `\"append_lists\"`: Append list values instead of replacing them.",
+		Parameters: []function.Parameter{
+			function.BoolParameter{
+				AllowNullValue:      true,
+				MarkdownDescription: "Permit null values, will be skipped when merging",
+				Name:                "allow_null",
+			},
+		},
 		VariadicParameter: function.DynamicParameter{
 			Name:                "maps",
 			MarkdownDescription: "Maps to merge",
+			AllowNullValue:      true,
 		},
 		Return: function.DynamicReturn{},
 	}
 }
 
 func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *function.RunResponse) {
+	var allowNullValues types.Bool
 	args := make([]types.Dynamic, 0)
 
-	if resp.Error = function.ConcatFuncErrors(req.Arguments.Get(ctx, &args)); resp.Error != nil {
+	if resp.Error = function.ConcatFuncErrors(req.Arguments.Get(ctx, &allowNullValues, &args)); resp.Error != nil {
 		return
 	}
 
@@ -58,7 +67,10 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	no_null_override := false
 
 	for i, arg := range args {
-		if arg.IsNull() {
+		if arg.IsNull() || arg.IsUnderlyingValueNull() {
+			if allowNullValues.ValueBool() {
+				continue
+			}
 			resp.Error = function.NewArgumentFuncError(int64(i), "argument must not be null")
 			return
 		}
