@@ -59,7 +59,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	no_null_override := false
 
 	for i, arg := range args {
-		if arg.IsNull() {
+		if arg.IsNull() || arg.IsUnderlyingValueNull() {
 			continue
 		}
 		value := arg.UnderlyingValue()
