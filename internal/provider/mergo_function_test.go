@@ -314,8 +314,19 @@ func TestMergoFunction_Null(t *testing.T) {
 					value = provider::deepmerge::mergo(null)
 				}
 				`,
-				// The parameter does not enable AllowNullValue
-				ExpectError: regexp.MustCompile(`argument must not be null`),
+				ExpectError: regexp.MustCompile(`at least one non-null`), // weird behaviour on line break
+			},
+			{
+				Config: `
+				output "test" {
+					value = provider::deepmerge::mergo({}, null)
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapSizeExact(0),
+					),
+				},
 			},
 		},
 	})

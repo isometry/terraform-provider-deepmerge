@@ -35,6 +35,7 @@ func (r MergoFunction) Definition(_ context.Context, _ function.DefinitionReques
 		VariadicParameter: function.DynamicParameter{
 			Name:                "maps",
 			MarkdownDescription: "Maps to merge",
+			AllowNullValue:      true,
 		},
 		Return: function.DynamicReturn{},
 	}
@@ -59,8 +60,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 
 	for i, arg := range args {
 		if arg.IsNull() {
-			resp.Error = function.NewArgumentFuncError(int64(i), "argument must not be null")
-			return
+			continue
 		}
 		value := arg.UnderlyingValue()
 		switch ty := value.Type(ctx); ty {
@@ -84,7 +84,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	}
 
 	if len(objs) == 0 {
-		resp.Error = function.NewFuncError("at least one map must be provided")
+		resp.Error = function.NewFuncError("at least one non-null map required")
 		return
 	}
 
