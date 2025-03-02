@@ -138,6 +138,80 @@ func TestMergoFunction_Default(t *testing.T) {
 					),
 				},
 			},
+			{
+				Config: `
+				variable "obj" {
+					type = object({
+						x1 = any
+						x2 = any
+					})
+					default = {
+						x1 = {
+							y1 = false
+							y3 = [4, 5, 6]
+						}
+						x2 = {
+							y4 = {
+								b = "mergo"
+								c = ["a", 2, ["b"]]
+							}
+						}
+
+					}
+				}
+				locals {
+					map1 = {
+						x1 = {
+							y1 = true
+							y2 = 1
+						}
+					}
+					map2 = {
+						x1 = {
+							y2 = 2
+							y3 = [1, 2, 3]
+						}
+						x2 = {
+							y4 = {
+								a = "hello"
+								b = "world"
+							}
+						}
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.map1, local.map2, var.obj)
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"x1": knownvalue.MapExact(map[string]knownvalue.Check{
+								"y1": knownvalue.Bool(false),
+								"y2": knownvalue.Int64Exact(2),
+								"y3": knownvalue.ListExact([]knownvalue.Check{
+									knownvalue.Int64Exact(4),
+									knownvalue.Int64Exact(5),
+									knownvalue.Int64Exact(6),
+								}),
+							}),
+							"x2": knownvalue.MapExact(map[string]knownvalue.Check{
+								"y4": knownvalue.MapExact(map[string]knownvalue.Check{
+									"a": knownvalue.StringExact("hello"),
+									"b": knownvalue.StringExact("mergo"),
+									"c": knownvalue.ListExact([]knownvalue.Check{
+										knownvalue.StringExact("a"),
+										knownvalue.Int64Exact(2),
+										knownvalue.ListExact([]knownvalue.Check{
+											knownvalue.StringExact("b"),
+										}),
+									}),
+								}),
+							}),
+						}),
+					),
+				},
+			},
 		},
 	})
 }
@@ -314,7 +388,11 @@ func TestMergoFunction_Null(t *testing.T) {
 					value = provider::deepmerge::mergo(null)
 				}
 				`,
-				ExpectError: regexp.MustCompile(`at least one non-null`), // weird behaviour on line break
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapSizeExact(0),
+					),
+				},
 			},
 			{
 				Config: `
@@ -338,9 +416,12 @@ func TestMergoFunction_Null(t *testing.T) {
 					value = provider::deepmerge::mergo(var.null_map)
 				}
 				`,
-				ExpectError: regexp.MustCompile(`at least one non-null`), // weird behaviour on line break
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapSizeExact(0),
+					),
+				},
 			},
-
 			{
 				Config: `
 				variable "null_map" {
@@ -697,6 +778,58 @@ func TestMergoFunction_NoOverrideWithNull(t *testing.T) {
 						}),
 					),
 				},
+			},
+		},
+	})
+}
+
+func TestMergoFunction_InvalidType(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(version.Must(version.NewVersion("1.8.0"))),
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+				output "test" {
+					value = provider::deepmerge::mergo(true)
+				}
+				`,
+				ExpectError: regexp.MustCompile(`unsupported bool argument`),
+			},
+			{
+				Config: `
+				output "test" {
+					value = provider::deepmerge::mergo(99.9)
+				}
+				`,
+				ExpectError: regexp.MustCompile(`unsupported number argument`),
+			},
+			{
+				Config: `
+				output "test" {
+					value = provider::deepmerge::mergo(["a", "b", "c"])
+				}
+				`,
+				ExpectError: regexp.MustCompile(`unsupported tuple argument`),
+			},
+
+			{
+				Config: `
+				output "test" {
+					value = provider::deepmerge::mergo(tolist(["a", "b", "c"]))
+				}
+				`,
+				ExpectError: regexp.MustCompile(`unsupported list argument`),
+			},
+			{
+				Config: `
+				output "test" {
+					value = provider::deepmerge::mergo(toset(["a", "b", "c"]))
+				}
+				`,
+				ExpectError: regexp.MustCompile(`unsupported set argument`),
 			},
 		},
 	})

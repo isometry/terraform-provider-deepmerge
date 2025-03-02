@@ -26,8 +26,8 @@ func Mergo(ctx context.Context, objs []types.Dynamic, opts ...func(*mergo.Config
 		}
 	}
 
-	dst := maps[0]
-	for i, m := range maps[1:] {
+	dst := make(map[string]any)
+	for i, m := range maps {
 		if err := mergo.Merge(&dst, m, opts...); err != nil {
 			diags.Append(diag.NewErrorDiagnostic(fmt.Sprintf("Error merging argument %d", i+1), err.Error()))
 			return
