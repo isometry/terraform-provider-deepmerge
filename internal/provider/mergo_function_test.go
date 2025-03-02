@@ -328,6 +328,35 @@ func TestMergoFunction_Null(t *testing.T) {
 					),
 				},
 			},
+			{
+				Config: `
+				variable "null_map" {
+					type    = map(any)
+					default = null
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(var.null_map)
+				}
+				`,
+				ExpectError: regexp.MustCompile(`at least one non-null`), // weird behaviour on line break
+			},
+
+			{
+				Config: `
+				variable "null_map" {
+					type    = map(any)
+					default = null
+				}
+				output "test" {
+					value = provider::deepmerge::mergo({}, var.null_map)
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapSizeExact(0),
+					),
+				},
+			},
 		},
 	})
 }
