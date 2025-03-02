@@ -22,92 +22,106 @@ func EncodeValue(v attr.Value) (any, error) {
 	switch vv := v.(type) {
 	case basetypes.StringValue:
 		return vv.ValueString(), nil
+
 	case basetypes.NumberValue:
 		f, _ := vv.ValueBigFloat().Float64()
 		return f, nil
+
 	case basetypes.BoolValue:
 		return vv.ValueBool(), nil
+
 	case basetypes.ObjectValue:
 		return EncodeObject(vv)
+
 	case basetypes.TupleValue:
 		return EncodeTuple(vv)
+
 	case basetypes.MapValue:
 		return EncodeMap(vv)
+
 	case basetypes.ListValue:
 		return EncodeList(vv)
+
 	case basetypes.SetValue:
 		return EncodeSet(vv)
+
 	case basetypes.DynamicValue:
 		return EncodeValue(vv.UnderlyingValue())
+
 	default:
 		return nil, fmt.Errorf("tried to encode unsupported type: %T: %v", v, vv)
 	}
 }
 
-func EncodeSet(sv basetypes.SetValue) ([]any, error) {
+func EncodeSet(sv basetypes.SetValue) (es []any, err error) {
 	elems := sv.Elements()
 	size := len(elems)
-	l := make([]any, size)
-	for i := 0; i < size; i++ {
-		var err error
-		l[i], err = EncodeValue(elems[i])
+	es = make([]any, size)
+
+	for i := range size {
+		es[i], err = EncodeValue(elems[i])
 		if err != nil {
 			return nil, err
 		}
 	}
-	return l, nil
+
+	return es, nil
 }
 
-func EncodeList(lv basetypes.ListValue) ([]any, error) {
+func EncodeList(lv basetypes.ListValue) (el []any, err error) {
 	elems := lv.Elements()
 	size := len(elems)
-	l := make([]any, size)
-	for i := 0; i < size; i++ {
-		var err error
-		l[i], err = EncodeValue(elems[i])
+	el = make([]any, size)
+
+	for i := range size {
+		el[i], err = EncodeValue(elems[i])
 		if err != nil {
 			return nil, err
 		}
 	}
-	return l, nil
+
+	return el, nil
 }
 
-func EncodeTuple(tv basetypes.TupleValue) ([]any, error) {
+func EncodeTuple(tv basetypes.TupleValue) (et []any, err error) {
 	elems := tv.Elements()
 	size := len(elems)
-	l := make([]any, size)
-	for i := 0; i < size; i++ {
-		var err error
-		l[i], err = EncodeValue(elems[i])
+	et = make([]any, size)
+
+	for i := range size {
+		et[i], err = EncodeValue(elems[i])
 		if err != nil {
 			return nil, err
 		}
 	}
-	return l, nil
+
+	return et, nil
 }
 
-func EncodeObject(ov basetypes.ObjectValue) (map[string]any, error) {
+func EncodeObject(ov basetypes.ObjectValue) (eo map[string]any, err error) {
 	attrs := ov.Attributes()
-	m := make(map[string]any, len(attrs))
+	eo = make(map[string]any, len(attrs))
+
 	for k, v := range attrs {
-		var err error
-		m[k], err = EncodeValue(v)
+		eo[k], err = EncodeValue(v)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return m, nil
+
+	return eo, nil
 }
 
-func EncodeMap(mv basetypes.MapValue) (map[string]any, error) {
+func EncodeMap(mv basetypes.MapValue) (em map[string]any, err error) {
 	elems := mv.Elements()
-	m := make(map[string]any, len(elems))
+	em = make(map[string]any, len(elems))
+
 	for k, v := range elems {
-		var err error
-		m[k], err = EncodeValue(v)
+		em[k], err = EncodeValue(v)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return m, nil
+
+	return em, nil
 }
