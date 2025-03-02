@@ -18,6 +18,7 @@ func Mergo(ctx context.Context, objs []types.Dynamic, opts ...func(*mergo.Config
 			diags.Append(diag.NewErrorDiagnostic(fmt.Sprintf("Error encoding argument %d", i+1), err.Error()))
 			return
 		}
+
 		if y, ok := x.(map[string]any); !ok {
 			diags.Append(diag.NewErrorDiagnostic(fmt.Sprintf("Error converting argument %d to map", i+1), fmt.Sprintf("unexpected type: %T for value %#v", x, x)))
 			return
@@ -35,6 +36,7 @@ func Mergo(ctx context.Context, objs []types.Dynamic, opts ...func(*mergo.Config
 	}
 
 	var mergedValue attr.Value
+
 	mergedValue, diags = DecodeScalar(ctx, dst)
 	if diags.HasError() {
 		return

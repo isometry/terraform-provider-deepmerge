@@ -73,12 +73,16 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 			switch option := vv.ValueString(); option {
 			case "no_override":
 				with_override = false
+
 			case "no_null_override":
 				no_null_override = true
+
 			case "override", "replace":
 				with_override = true
+
 			case "append", "append_lists":
 				opts = append(opts, mergo.WithAppendSlice)
+
 			default:
 				resp.Error = function.NewArgumentFuncError(int64(i), "unrecognised option")
 				return
@@ -113,8 +117,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	resp.Error = function.ConcatFuncErrors(resp.Result.Set(ctx, &merged))
 }
 
-type noNullOverrideTransformer struct {
-}
+type noNullOverrideTransformer struct{}
 
 func (t noNullOverrideTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
 	if typ.Kind() == reflect.Map {
@@ -148,8 +151,10 @@ func deepMergeMaps(dst, src reflect.Value) reflect.Value {
 			if !srcElem.IsValid() { // skip override of nil values
 				continue
 			}
+
 			dst.SetMapIndex(key, srcElem)
 		}
 	}
+
 	return dst
 }
