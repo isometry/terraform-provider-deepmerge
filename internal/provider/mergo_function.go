@@ -5,11 +5,14 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"reflect"
+	"strings"
 
 	"dario.cat/mergo"
 	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	"github.com/isometry/terraform-provider-deepmerge/internal/helpers"
 )
@@ -59,33 +62,42 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	no_null_override := false
 
 	for i, arg := range args {
-		if arg.IsNull() || arg.IsUnderlyingValueNull() {
+		if arg.IsNull() {
 			continue
 		}
+
 		value := arg.UnderlyingValue()
-		switch ty := value.Type(ctx); ty {
-		case types.StringType:
-			switch option := arg.String(); option {
-			case `"no_override"`:
+
+		switch vv := value.(type) {
+		case basetypes.StringValue:
+			switch option := vv.ValueString(); option {
+			case "no_override":
 				with_override = false
-			case `"no_null_override"`:
+
+			case "no_null_override":
 				no_null_override = true
-			case `"override"`, `"replace"`:
+
+			case "override", "replace":
 				with_override = true
-			case `"append"`, `"append_lists"`:
+
+			case "append", "append_lists":
 				opts = append(opts, mergo.WithAppendSlice)
+
 			default:
 				resp.Error = function.NewArgumentFuncError(int64(i), "unrecognised option")
 				return
 			}
-		default:
-			objs = append(objs, arg)
-		}
-	}
 
-	if len(objs) == 0 {
-		resp.Error = function.NewFuncError("at least one non-null map required")
-		return
+		case basetypes.MapValue, basetypes.ObjectValue:
+			if !vv.IsNull() {
+				objs = append(objs, arg)
+			}
+
+		default:
+			typeName := strings.ToLower(strings.TrimSuffix(reflect.TypeOf(value).Name(), "Value"))
+			resp.Error = function.NewArgumentFuncError(int64(i), fmt.Sprintf("unsupported %s argument", typeName))
+			return
+		}
 	}
 
 	if with_override {
@@ -105,8 +117,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	resp.Error = function.ConcatFuncErrors(resp.Result.Set(ctx, &merged))
 }
 
-type noNullOverrideTransformer struct {
-}
+type noNullOverrideTransformer struct{}
 
 func (t noNullOverrideTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
 	if typ.Kind() == reflect.Map {
@@ -140,8 +151,10 @@ func deepMergeMaps(dst, src reflect.Value) reflect.Value {
 			if !srcElem.IsValid() { // skip override of nil values
 				continue
 			}
+
 			dst.SetMapIndex(key, srcElem)
 		}
 	}
+
 	return dst
 }

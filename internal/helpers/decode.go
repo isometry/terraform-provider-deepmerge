@@ -24,6 +24,7 @@ func DecodeMapping(ctx context.Context, m map[string]any) (attr.Value, diag.Diag
 		if diags.HasError() {
 			return nil, diags
 		}
+
 		vm[k] = vv
 		tm[k] = vv.Type(ctx)
 	}
@@ -40,6 +41,7 @@ func DecodeSequence(ctx context.Context, s []any) (attr.Value, diag.Diagnostics)
 		if diags.HasError() {
 			return nil, diags
 		}
+
 		vl[i] = vv
 		tl[i] = vv.Type(ctx)
 	}
@@ -51,18 +53,25 @@ func DecodeScalar(ctx context.Context, m any) (value attr.Value, diags diag.Diag
 	switch v := m.(type) {
 	case nil:
 		value = types.DynamicNull()
+
 	case float64:
 		value = types.NumberValue(big.NewFloat(float64(v)))
+
 	case bool:
 		value = types.BoolValue(v)
+
 	case string:
 		value = types.StringValue(v)
+
 	case []any:
 		return DecodeSequence(ctx, v)
+
 	case map[string]any:
 		return DecodeMapping(ctx, v)
+
 	default:
 		diags.Append(diag.NewErrorDiagnostic("failed to decode", fmt.Sprintf("unexpected type: %T for value %#v", v, v)))
 	}
+
 	return
 }
