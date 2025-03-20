@@ -3,11 +3,12 @@
 
 # Terraform Provider Deepmerge
 
-Deepmerge functions for Terraform 1.8+.
+Deepmerge functions for Terraform 1.8+ and OpenTofu 1.7+.
 
 ## Requirements
 
 - [Terraform](https://developer.hashicorp.com/terraform/downloads) >= 1.8
+- [OpenTofu](https://opentofu.org/docs/intro/install/) >= 1.7
 
 ## Using the provider
 
@@ -15,7 +16,8 @@ Deepmerge functions for Terraform 1.8+.
 terraform {
   required_providers {
     deepmerge = {
-      source = "registry.terraform.io/isometry/deepmerge"
+      source = "isometry/deepmerge"
+      version = "1.0.0"
     }
   }
 }
