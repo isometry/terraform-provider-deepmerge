@@ -60,6 +60,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	opts := make([]func(*mergo.Config), 0)
 	with_override := true
 	no_null_override := false
+	with_append := false
 
 	for i, arg := range args {
 		if arg.IsNull() {
@@ -82,6 +83,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 
 			case "append", "append_lists":
 				opts = append(opts, mergo.WithAppendSlice)
+				with_append = true
 
 			default:
 				resp.Error = function.NewArgumentFuncError(int64(i), "unrecognised option")
@@ -105,7 +107,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	}
 
 	if no_null_override {
-		opts = append(opts, mergo.WithTransformers(noNullOverrideTransformer{}))
+		opts = append(opts, mergo.WithTransformers(noNullOverrideTransformer{with_append: with_append}))
 	}
 
 	merged, diags := helpers.Mergo(ctx, objs, opts...)
@@ -117,19 +119,21 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	resp.Error = function.ConcatFuncErrors(resp.Result.Set(ctx, &merged))
 }
 
-type noNullOverrideTransformer struct{}
+type noNullOverrideTransformer struct {
+	with_append bool
+}
 
 func (t noNullOverrideTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
 	if typ.Kind() == reflect.Map {
 		return func(dst, src reflect.Value) error {
-			deepMergeMaps(dst, src)
+			deepMergeMaps(dst, src, t.with_append)
 			return nil
 		}
 	}
 	return nil
 }
 
-func deepMergeMaps(dst, src reflect.Value) reflect.Value {
+func deepMergeMaps(dst, src reflect.Value, appendSlice bool) reflect.Value {
 	for _, key := range src.MapKeys() {
 		srcElem := src.MapIndex(key)
 		dstElem := dst.MapIndex(key)
@@ -145,13 +149,13 @@ func deepMergeMaps(dst, src reflect.Value) reflect.Value {
 
 		if srcElem.Kind() == reflect.Map && dstElem.Kind() == reflect.Map {
 			// recursive call
-			newValue := deepMergeMaps(dstElem, srcElem)
+			newValue := deepMergeMaps(dstElem, srcElem, appendSlice)
 			dst.SetMapIndex(key, newValue)
+		} else if !srcElem.IsValid() { // skip override of nil values
+			continue
+		} else if srcElem.Kind() == reflect.Slice && dstElem.Kind() == reflect.Slice && appendSlice { // handle append
+			dst.SetMapIndex(key, reflect.AppendSlice(dstElem, srcElem))
 		} else {
-			if !srcElem.IsValid() { // skip override of nil values
-				continue
-			}
-
 			dst.SetMapIndex(key, srcElem)
 		}
 	}
