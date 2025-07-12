@@ -199,7 +199,7 @@ func unionSlices(dst, src reflect.Value) reflect.Value {
 	return result
 }
 
-// containsElement checks if a slice contains a specific element using reflect.DeepEqual
+// containsElement checks if a slice contains a specific element using reflect.DeepEqual.
 func containsElement(slice, elem reflect.Value) bool {
 	elemInterface := elem.Interface()
 	for i := 0; i < slice.Len(); i++ {
