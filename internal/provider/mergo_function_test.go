@@ -915,3 +915,321 @@ func TestMergoFunction_InvalidType(t *testing.T) {
 		},
 	})
 }
+
+func TestMergoFunction_UnionLists(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(version.Must(version.NewVersion("1.8.0"))),
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+				locals {
+					map1 = {
+						tags = ["app", "terraform", "prod"]
+						ports = [80, 443, 22]
+						features = {
+							security = ["ssl", "firewall"]
+							monitoring = ["logs", "metrics"]
+						}
+					}
+					map2 = {
+						tags = ["monitoring", "prod", "security"]
+						ports = [8080, 80, 9090]
+						features = {
+							security = ["encryption", "ssl"]
+							monitoring = ["alerts", "metrics"]
+							caching = ["redis"]
+						}
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.map1, local.map2, "union_lists")
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"tags": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.StringExact("app"),
+								knownvalue.StringExact("terraform"),
+								knownvalue.StringExact("prod"),
+								knownvalue.StringExact("monitoring"),
+								knownvalue.StringExact("security"),
+							}),
+							"ports": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.Int64Exact(80),
+								knownvalue.Int64Exact(443),
+								knownvalue.Int64Exact(22),
+								knownvalue.Int64Exact(8080),
+								knownvalue.Int64Exact(9090),
+							}),
+							"features": knownvalue.MapExact(map[string]knownvalue.Check{
+								"security": knownvalue.ListExact([]knownvalue.Check{
+									knownvalue.StringExact("ssl"),
+									knownvalue.StringExact("firewall"),
+									knownvalue.StringExact("encryption"),
+								}),
+								"monitoring": knownvalue.ListExact([]knownvalue.Check{
+									knownvalue.StringExact("logs"),
+									knownvalue.StringExact("metrics"),
+									knownvalue.StringExact("alerts"),
+								}),
+								"caching": knownvalue.ListExact([]knownvalue.Check{
+									knownvalue.StringExact("redis"),
+								}),
+							}),
+						}),
+					),
+				},
+			},
+			{
+				Config: `
+				locals {
+					base = {
+						allowed_cidrs = ["10.0.0.0/8", "192.168.1.0/24"]
+						environments = ["dev", "staging"]
+					}
+					overrides = {
+						allowed_cidrs = ["172.16.0.0/12", "10.0.0.0/8"]
+						environments = ["prod", "staging"]
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.base, local.overrides, "union_lists")
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"allowed_cidrs": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.StringExact("10.0.0.0/8"),
+								knownvalue.StringExact("192.168.1.0/24"),
+								knownvalue.StringExact("172.16.0.0/12"),
+							}),
+							"environments": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.StringExact("dev"),
+								knownvalue.StringExact("staging"),
+								knownvalue.StringExact("prod"),
+							}),
+						}),
+					),
+				},
+			},
+			{
+				Config: `
+				locals {
+					map1 = {
+						mixed_types = [1, "string", true]
+						numbers = [1, 2, 3]
+					}
+					map2 = {
+						mixed_types = [true, "another", 1]
+						numbers = [3, 4, 5]
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.map1, local.map2, "union_lists")
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"mixed_types": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.Int64Exact(1),
+								knownvalue.StringExact("string"),
+								knownvalue.Bool(true),
+								knownvalue.StringExact("another"),
+							}),
+							"numbers": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.Int64Exact(1),
+								knownvalue.Int64Exact(2),
+								knownvalue.Int64Exact(3),
+								knownvalue.Int64Exact(4),
+								knownvalue.Int64Exact(5),
+							}),
+						}),
+					),
+				},
+			},
+		},
+	})
+}
+
+func TestMergoFunction_UnionListsWithNullOverride(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(version.Must(version.NewVersion("1.8.0"))),
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+				locals {
+					base = {
+						tags = ["app", "base"]
+						important_setting = "keep_this"
+					}
+					overrides = {
+						tags = ["override", "app"]
+						important_setting = null
+						new_field = "added"
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.base, local.overrides, "union_lists", "no_null_override")
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"tags": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.StringExact("app"),
+								knownvalue.StringExact("base"),
+								knownvalue.StringExact("override"),
+							}),
+							"important_setting": knownvalue.StringExact("keep_this"),
+							"new_field":         knownvalue.StringExact("added"),
+						}),
+					),
+				},
+			},
+		},
+	})
+}
+
+func TestMergoFunction_UnionListsWithDefaultNullBehavior(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(version.Must(version.NewVersion("1.8.0"))),
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+				locals {
+					base = {
+						tags = ["app", "base"]
+						important_setting = "replace_this"
+					}
+					overrides = {
+						tags = ["override", "app"]
+						important_setting = null
+						new_field = "added"
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.base, local.overrides, "union_lists")
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"tags": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.StringExact("app"),
+								knownvalue.StringExact("base"),
+								knownvalue.StringExact("override"),
+							}),
+							"new_field": knownvalue.StringExact("added"),
+						}),
+					),
+				},
+			},
+		},
+	})
+}
+
+func TestMergoFunction_Union_NoNullOverride(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(version.Must(version.NewVersion("1.8.0"))),
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+				locals {
+					base = {
+						tags = ["app", "base"]
+						important_setting = "keep_this"
+					}
+					overrides = {
+						tags = ["override", "app"]
+						important_setting = null
+						new_field = "added"
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.base, local.overrides, "union", "no_null_override")
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"tags": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.StringExact("app"),
+								knownvalue.StringExact("base"),
+								knownvalue.StringExact("override"),
+							}),
+							"important_setting": knownvalue.StringExact("keep_this"),
+							"new_field":         knownvalue.StringExact("added"),
+						}),
+					),
+				},
+			},
+		},
+	})
+}
+
+func TestMergoFunction_UnionListsWithNonComparableElements(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(version.Must(version.NewVersion("1.8.0"))),
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+				locals {
+					base = {
+						nested_lists = [
+							["a", "b"],
+							["c", "d"]
+						]
+					}
+					additional = {
+						nested_lists = [
+							["a", "b"],
+							["e", "f"]
+						]
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.base, local.additional, "union_lists")
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"nested_lists": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.ListExact([]knownvalue.Check{
+									knownvalue.StringExact("a"),
+									knownvalue.StringExact("b"),
+								}),
+								knownvalue.ListExact([]knownvalue.Check{
+									knownvalue.StringExact("c"),
+									knownvalue.StringExact("d"),
+								}),
+								knownvalue.ListExact([]knownvalue.Check{
+									knownvalue.StringExact("e"),
+									knownvalue.StringExact("f"),
+								}),
+							}),
+						}),
+					),
+				},
+			},
+		},
+	})
+}

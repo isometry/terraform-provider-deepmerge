@@ -53,6 +53,7 @@ A distinctive feature of `mergo` is its use of string arguments to control merge
 | `"no_override"`                      | Earlier values are preserved               | Setting immutable defaults            |
 | `"no_null_override"`                 | Null values don't replace existing values  | Optional configuration fields         |
 | `"append"` / `"append_lists"`        | Lists are concatenated instead of replaced | Accumulating features, rules, or tags |
+| `"union"` / `"union_lists"`          | Lists are merged as sets (unique elements) | Deduplicating tags, IPs, or identifiers |
 
 ### Examples by Mode
 
@@ -117,6 +118,34 @@ locals {
   #   firewall = {
   #     allowed_ports = [22, 80, 443, 8080, 9090]
   #     denied_ips    = ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
+  #   }
+  # }
+}
+```
+
+#### Union Lists Mode
+
+```hcl
+locals {
+  base_tags = {
+    security = {
+      allowed_ports = [22, 80, 443]
+      tags = ["security", "prod", "critical"]
+    }
+  }
+
+  additional_tags = {
+    security = {
+      allowed_ports = [8080, 80, 9090]
+      tags = ["monitoring", "prod", "audit"]
+    }
+  }
+
+  result = provider::deepmerge::mergo(local.base_tags, local.additional_tags, "union_lists")
+  # Result: {
+  #   security = {
+  #     allowed_ports = [22, 80, 443, 8080, 9090]  # Unique elements only
+  #     tags = ["security", "prod", "critical", "monitoring", "audit"]  # Duplicates removed
   #   }
   # }
 }

@@ -65,6 +65,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	with_override := true
 	no_null_override := false
 	with_append := false
+	with_union := false
 
 	for i, arg := range args {
 		if arg.IsNull() {
@@ -89,6 +90,9 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 				opts = append(opts, mergo.WithAppendSlice)
 				with_append = true
 
+			case "union", "union_lists":
+				with_union = true
+
 			default:
 				resp.Error = function.NewArgumentFuncError(int64(i), "unrecognised option")
 				return
@@ -110,8 +114,12 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 		opts = append(opts, mergo.WithOverride)
 	}
 
-	if no_null_override {
-		opts = append(opts, mergo.WithTransformers(noNullOverrideTransformer{with_append: with_append}))
+	if no_null_override || with_union {
+		opts = append(opts, mergo.WithTransformers(customTransformer{
+			with_append:        with_append,
+			with_union:         with_union,
+			with_null_override: !no_null_override,
+		}))
 	}
 
 	merged, diags := helpers.Mergo(ctx, objs, opts...)
@@ -123,21 +131,23 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	resp.Error = function.ConcatFuncErrors(resp.Result.Set(ctx, &merged))
 }
 
-type noNullOverrideTransformer struct {
-	with_append bool
+type customTransformer struct {
+	with_append        bool
+	with_union         bool
+	with_null_override bool
 }
 
-func (t noNullOverrideTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+func (t customTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
 	if typ.Kind() == reflect.Map {
 		return func(dst, src reflect.Value) error {
-			deepMergeMaps(dst, src, t.with_append)
+			deepMergeMaps(dst, src, t.with_append, t.with_union, t.with_null_override)
 			return nil
 		}
 	}
 	return nil
 }
 
-func deepMergeMaps(dst, src reflect.Value, appendSlice bool) reflect.Value {
+func deepMergeMaps(dst, src reflect.Value, appendSlice bool, uniqueSlice bool, nullOverride bool) reflect.Value {
 	for _, key := range src.MapKeys() {
 		srcElem := src.MapIndex(key)
 		dstElem := dst.MapIndex(key)
@@ -153,10 +163,12 @@ func deepMergeMaps(dst, src reflect.Value, appendSlice bool) reflect.Value {
 
 		if srcElem.Kind() == reflect.Map && dstElem.Kind() == reflect.Map {
 			// recursive call
-			newValue := deepMergeMaps(dstElem, srcElem, appendSlice)
+			newValue := deepMergeMaps(dstElem, srcElem, appendSlice, uniqueSlice, nullOverride)
 			dst.SetMapIndex(key, newValue)
-		} else if !srcElem.IsValid() { // skip override of nil values
+		} else if !srcElem.IsValid() && !nullOverride { // skip override of nil values only if nullOverride is false
 			continue
+		} else if srcElem.Kind() == reflect.Slice && dstElem.Kind() == reflect.Slice && uniqueSlice { // handle union
+			dst.SetMapIndex(key, unionSlices(dstElem, srcElem))
 		} else if srcElem.Kind() == reflect.Slice && dstElem.Kind() == reflect.Slice && appendSlice { // handle append
 			dst.SetMapIndex(key, reflect.AppendSlice(dstElem, srcElem))
 		} else {
@@ -165,4 +177,35 @@ func deepMergeMaps(dst, src reflect.Value, appendSlice bool) reflect.Value {
 	}
 
 	return dst
+}
+
+func unionSlices(dst, src reflect.Value) reflect.Value {
+	result := reflect.MakeSlice(dst.Type(), 0, dst.Len()+src.Len())
+
+	// Add elements from dst (preserving order)
+	for i := 0; i < dst.Len(); i++ {
+		if !containsElement(result, dst.Index(i)) {
+			result = reflect.Append(result, dst.Index(i))
+		}
+	}
+
+	// Add new elements from src
+	for i := 0; i < src.Len(); i++ {
+		if !containsElement(result, src.Index(i)) {
+			result = reflect.Append(result, src.Index(i))
+		}
+	}
+
+	return result
+}
+
+// containsElement checks if a slice contains a specific element using reflect.DeepEqual.
+func containsElement(slice, elem reflect.Value) bool {
+	elemInterface := elem.Interface()
+	for i := 0; i < slice.Len(); i++ {
+		if reflect.DeepEqual(slice.Index(i).Interface(), elemInterface) {
+			return true
+		}
+	}
+	return false
 }
