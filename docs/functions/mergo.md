@@ -16,12 +16,13 @@ Unlike Terraform's built-in `merge()` function which only performs shallow mergi
 
 A distinctive feature of `mergo` is its use of string arguments to control merge strategies. Simply append one or more control strings after your maps to change how the merge operates:
 
-| Mode                                 | Description                                | Use Case                              |
-| ------------------------------------ | ------------------------------------------ | ------------------------------------- |
-| `"override"` / `"replace"` (default) | Later values replace earlier ones          | Standard configuration layering       |
-| `"no_override"`                      | Earlier values are preserved               | Setting immutable defaults            |
-| `"no_null_override"`                 | Null values don't replace existing values  | Optional configuration fields         |
-| `"append"` / `"append_lists"`        | Lists are concatenated instead of replaced | Accumulating features, rules, or tags |
+| Mode                                 | Description                                | Use Case                                |
+| ------------------------------------ | ------------------------------------------ | --------------------------------------- |
+| `"override"` / `"replace"` (default) | Later values replace earlier ones          | Standard configuration layering         |
+| `"no_override"`                      | Earlier values are preserved               | Setting immutable defaults              |
+| `"no_null_override"`                 | Null values don't replace existing values  | Optional configuration fields           |
+| `"append"` / `"append_lists"`        | Lists are concatenated instead of replaced | Accumulating features, rules, or tags   |
+| `"union"` / `"union_lists"`          | Lists are merged as sets (unique elements) | Deduplicating tags, IPs, or identifiers |
 
 ### Examples by Mode
 
@@ -86,6 +87,34 @@ locals {
   #   firewall = {
   #     allowed_ports = [22, 80, 443, 8080, 9090]
   #     denied_ips    = ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
+  #   }
+  # }
+}
+```
+
+#### Union Lists Mode
+
+```hcl
+locals {
+  base_tags = {
+    security = {
+      allowed_ports = [22, 80, 443]
+      tags = ["security", "prod", "critical"]
+    }
+  }
+
+  additional_tags = {
+    security = {
+      allowed_ports = [8080, 80, 9090]
+      tags = ["monitoring", "prod", "audit"]
+    }
+  }
+
+  result = provider::deepmerge::mergo(local.base_tags, local.additional_tags, "union_lists")
+  # Result: {
+  #   security = {
+  #     allowed_ports = [22, 80, 443, 8080, 9090]  # Unique elements only
+  #     tags = ["security", "prod", "critical", "monitoring", "audit"]  # Duplicates removed
   #   }
   # }
 }
@@ -219,6 +248,43 @@ locals {
     local.prod_overrides,
     "append"
   )
+}
+```
+
+### Tag Management with Union Lists
+
+```hcl
+locals {
+  # Base tags from organization standards
+  org_tags = {
+    global_tags = ["terraform", "managed", "compliance"]
+    security_tags = ["encrypted", "monitored"]
+  }
+
+  # Team-specific tags
+  team_tags = {
+    global_tags = ["backend", "api", "terraform"]  # Some overlap
+    team_tags = ["payments", "critical"]
+  }
+
+  # Environment-specific tags
+  env_tags = {
+    global_tags = ["production", "managed"]  # More overlap
+    security_tags = ["audited", "encrypted"]  # More overlap
+  }
+
+  # Merge all tags with automatic deduplication
+  final_tags = provider::deepmerge::mergo(
+    local.org_tags,
+    local.team_tags,
+    local.env_tags,
+    "union_lists"
+  )
+  # Result: {
+  #   global_tags = ["terraform", "managed", "compliance", "backend", "api", "production"]
+  #   security_tags = ["encrypted", "monitored", "audited"]
+  #   team_tags = ["payments", "critical"]
+  # }
 }
 ```
 
