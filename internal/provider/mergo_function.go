@@ -180,26 +180,32 @@ func deepMergeMaps(dst, src reflect.Value, appendSlice bool, uniqueSlice bool, n
 }
 
 func unionSlices(dst, src reflect.Value) reflect.Value {
-	seen := make(map[any]bool)
 	result := reflect.MakeSlice(dst.Type(), 0, dst.Len()+src.Len())
 
 	// Add elements from dst (preserving order)
 	for i := 0; i < dst.Len(); i++ {
-		elem := dst.Index(i).Interface()
-		if !seen[elem] {
-			seen[elem] = true
+		if !containsElement(result, dst.Index(i)) {
 			result = reflect.Append(result, dst.Index(i))
 		}
 	}
 
 	// Add new elements from src
 	for i := 0; i < src.Len(); i++ {
-		elem := src.Index(i).Interface()
-		if !seen[elem] {
-			seen[elem] = true
+		if !containsElement(result, src.Index(i)) {
 			result = reflect.Append(result, src.Index(i))
 		}
 	}
 
 	return result
+}
+
+// containsElement checks if a slice contains a specific element using reflect.DeepEqual
+func containsElement(slice, elem reflect.Value) bool {
+	elemInterface := elem.Interface()
+	for i := 0; i < slice.Len(); i++ {
+		if reflect.DeepEqual(slice.Index(i).Interface(), elemInterface) {
+			return true
+		}
+	}
+	return false
 }

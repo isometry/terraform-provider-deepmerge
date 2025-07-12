@@ -1181,3 +1181,55 @@ func TestMergoFunction_Union_NoNullOverride(t *testing.T) {
 		},
 	})
 }
+
+func TestMergoFunction_UnionListsWithNonComparableElements(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(version.Must(version.NewVersion("1.8.0"))),
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+				locals {
+					base = {
+						nested_lists = [
+							["a", "b"],
+							["c", "d"]
+						]
+					}
+					additional = {
+						nested_lists = [
+							["a", "b"],
+							["e", "f"]
+						]
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.base, local.additional, "union_lists")
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"nested_lists": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.ListExact([]knownvalue.Check{
+									knownvalue.StringExact("a"),
+									knownvalue.StringExact("b"),
+								}),
+								knownvalue.ListExact([]knownvalue.Check{
+									knownvalue.StringExact("c"),
+									knownvalue.StringExact("d"),
+								}),
+								knownvalue.ListExact([]knownvalue.Check{
+									knownvalue.StringExact("e"),
+									knownvalue.StringExact("f"),
+								}),
+							}),
+						}),
+					),
+				},
+			},
+		},
+	})
+}
