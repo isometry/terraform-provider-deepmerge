@@ -6,7 +6,22 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      golang:
+        applies-to: security-updates
+        patterns:
+          - "golang.org/*"
+      hashicorp:
+        applies-to: security-updates
+        patterns:
+          - "github.com/hashicorp/*"
+    open-pull-requests-limit: 0
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
