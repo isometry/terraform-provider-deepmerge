@@ -1,6 +1,7 @@
 [![CodeQL](https://github.com/isometry/terraform-provider-deepmerge/actions/workflows/codeql.yml/badge.svg)](https://github.com/isometry/terraform-provider-deepmerge/actions/workflows/codeql.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/isometry/terraform-provider-deepmerge)](https://goreportcard.com/report/github.com/isometry/terraform-provider-deepmerge)
 [![Terraform Registry Version](https://img.shields.io/badge/dynamic/json?color=blue&label=registry&query=$.version&url=https://registry.terraform.io/v1/providers/isometry/deepmerge)](https://registry.terraform.io/providers/isometry/deepmerge/latest)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/isometry/terraform-provider-deepmerge/total)
 
 # Terraform Provider Deepmerge
 
