@@ -6,17 +6,23 @@
 package helpers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
-func EncodeValue(v attr.Value) (any, error) {
+func EncodeValue(ctx context.Context, v attr.Value) (any, error) {
 	// Avoid nil pointer deref with broken OpenTofu custom function
 	// implementation that passes unknown values as zero values.
 	if v == nil || v.IsNull() {
 		return nil, nil
+	}
+
+	// Handle unknown values by returning a sentinel that preserves type info
+	if v.IsUnknown() {
+		return CreateUnknownSentinel(ctx, v), nil
 	}
 
 	switch vv := v.(type) {
@@ -31,35 +37,35 @@ func EncodeValue(v attr.Value) (any, error) {
 		return vv.ValueBool(), nil
 
 	case basetypes.ObjectValue:
-		return EncodeObject(vv)
+		return EncodeObject(ctx, vv)
 
 	case basetypes.TupleValue:
-		return EncodeTuple(vv)
+		return EncodeTuple(ctx, vv)
 
 	case basetypes.MapValue:
-		return EncodeMap(vv)
+		return EncodeMap(ctx, vv)
 
 	case basetypes.ListValue:
-		return EncodeList(vv)
+		return EncodeList(ctx, vv)
 
 	case basetypes.SetValue:
-		return EncodeSet(vv)
+		return EncodeSet(ctx, vv)
 
 	case basetypes.DynamicValue:
-		return EncodeValue(vv.UnderlyingValue())
+		return EncodeValue(ctx, vv.UnderlyingValue())
 
 	default:
 		return nil, fmt.Errorf("tried to encode unsupported type: %T: %v", v, vv)
 	}
 }
 
-func EncodeSet(sv basetypes.SetValue) (es []any, err error) {
+func EncodeSet(ctx context.Context, sv basetypes.SetValue) (es []any, err error) {
 	elems := sv.Elements()
 	size := len(elems)
 	es = make([]any, size)
 
 	for i := range size {
-		es[i], err = EncodeValue(elems[i])
+		es[i], err = EncodeValue(ctx, elems[i])
 		if err != nil {
 			return nil, err
 		}
@@ -68,13 +74,13 @@ func EncodeSet(sv basetypes.SetValue) (es []any, err error) {
 	return es, nil
 }
 
-func EncodeList(lv basetypes.ListValue) (el []any, err error) {
+func EncodeList(ctx context.Context, lv basetypes.ListValue) (el []any, err error) {
 	elems := lv.Elements()
 	size := len(elems)
 	el = make([]any, size)
 
 	for i := range size {
-		el[i], err = EncodeValue(elems[i])
+		el[i], err = EncodeValue(ctx, elems[i])
 		if err != nil {
 			return nil, err
 		}
@@ -83,13 +89,13 @@ func EncodeList(lv basetypes.ListValue) (el []any, err error) {
 	return el, nil
 }
 
-func EncodeTuple(tv basetypes.TupleValue) (et []any, err error) {
+func EncodeTuple(ctx context.Context, tv basetypes.TupleValue) (et []any, err error) {
 	elems := tv.Elements()
 	size := len(elems)
 	et = make([]any, size)
 
 	for i := range size {
-		et[i], err = EncodeValue(elems[i])
+		et[i], err = EncodeValue(ctx, elems[i])
 		if err != nil {
 			return nil, err
 		}
@@ -98,12 +104,12 @@ func EncodeTuple(tv basetypes.TupleValue) (et []any, err error) {
 	return et, nil
 }
 
-func EncodeObject(ov basetypes.ObjectValue) (eo map[string]any, err error) {
+func EncodeObject(ctx context.Context, ov basetypes.ObjectValue) (eo map[string]any, err error) {
 	attrs := ov.Attributes()
 	eo = make(map[string]any, len(attrs))
 
 	for k, v := range attrs {
-		eo[k], err = EncodeValue(v)
+		eo[k], err = EncodeValue(ctx, v)
 		if err != nil {
 			return nil, err
 		}
@@ -112,12 +118,12 @@ func EncodeObject(ov basetypes.ObjectValue) (eo map[string]any, err error) {
 	return eo, nil
 }
 
-func EncodeMap(mv basetypes.MapValue) (em map[string]any, err error) {
+func EncodeMap(ctx context.Context, mv basetypes.MapValue) (em map[string]any, err error) {
 	elems := mv.Elements()
 	em = make(map[string]any, len(elems))
 
 	for k, v := range elems {
-		em[k], err = EncodeValue(v)
+		em[k], err = EncodeValue(ctx, v)
 		if err != nil {
 			return nil, err
 		}

@@ -13,10 +13,16 @@ import (
 func Mergo(ctx context.Context, objs []types.Dynamic, opts ...func(*mergo.Config)) (merged types.Dynamic, diags diag.Diagnostics) {
 	maps := make([]map[string]any, len(objs))
 	for i, obj := range objs {
-		x, err := EncodeValue(obj)
+		x, err := EncodeValue(ctx, obj)
 		if err != nil {
 			diags.Append(diag.NewErrorDiagnostic(fmt.Sprintf("Error encoding argument %d", i+1), err.Error()))
 			return
+		}
+
+		// If the entire argument is unknown, return an unknown result
+		// (we can't merge with an entirely unknown map)
+		if IsUnknownSentinel(x) {
+			return types.DynamicUnknown(), nil
 		}
 
 		if y, ok := x.(map[string]any); !ok {
