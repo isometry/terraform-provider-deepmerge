@@ -41,7 +41,7 @@ jobs:
           cache: true
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
-          terraform_version: 1.13.*
+          terraform_version: 1.14.*
           terraform_wrapper: false
       - run: go generate ./...
       - name: git diff
@@ -66,6 +66,7 @@ jobs:
           - "1.11.*"
           - "1.12.*"
           - "1.13.*"
+          - "1.14.*"
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v4.2.2
       - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0

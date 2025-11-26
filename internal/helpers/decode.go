@@ -69,6 +69,9 @@ func DecodeScalar(ctx context.Context, m any) (value attr.Value, diags diag.Diag
 	case map[string]any:
 		return DecodeMapping(ctx, v)
 
+	case UnknownSentinel:
+		value = v.ToUnknownValue()
+
 	default:
 		diags.Append(diag.NewErrorDiagnostic("failed to decode", fmt.Sprintf("unexpected type: %T for value %#v", v, v)))
 	}

@@ -43,6 +43,7 @@ func (r MergoFunction) Definition(_ context.Context, _ function.DefinitionReques
 			Name:                "maps",
 			MarkdownDescription: "Maps to merge",
 			AllowNullValue:      true,
+			AllowUnknownValues:  true,
 		},
 		Return: function.DynamicReturn{},
 	}
@@ -70,6 +71,12 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 	for i, arg := range args {
 		if arg.IsNull() {
 			continue
+		}
+
+		// Handle unknown arguments - return unknown result
+		if arg.IsUnknown() {
+			resp.Error = function.ConcatFuncErrors(resp.Result.Set(ctx, types.DynamicUnknown()))
+			return
 		}
 
 		value := arg.UnderlyingValue()
@@ -161,6 +168,19 @@ func deepMergeMaps(dst, src reflect.Value, appendSlice bool, uniqueSlice bool, n
 			dstElem = dstElem.Elem()
 		}
 
+		// BIDIRECTIONAL STICKY UNKNOWN: If either side is unknown, result is unknown
+		srcIsUnknown := srcElem.IsValid() && isUnknownSentinel(srcElem)
+		dstIsUnknown := dstElem.IsValid() && isUnknownSentinel(dstElem)
+
+		if srcIsUnknown || dstIsUnknown {
+			// Prefer src's sentinel if available (more recent type info), otherwise keep dst's
+			if srcIsUnknown {
+				dst.SetMapIndex(key, srcElem)
+			}
+			// If only dst is unknown, it stays (already in dst)
+			continue
+		}
+
 		if srcElem.Kind() == reflect.Map && dstElem.Kind() == reflect.Map {
 			// recursive call
 			newValue := deepMergeMaps(dstElem, srcElem, appendSlice, uniqueSlice, nullOverride)
@@ -177,6 +197,14 @@ func deepMergeMaps(dst, src reflect.Value, appendSlice bool, uniqueSlice bool, n
 	}
 
 	return dst
+}
+
+// isUnknownSentinel checks if a reflect.Value contains an UnknownSentinel.
+func isUnknownSentinel(v reflect.Value) bool {
+	if !v.IsValid() || !v.CanInterface() {
+		return false
+	}
+	return helpers.IsUnknownSentinel(v.Interface())
 }
 
 func unionSlices(dst, src reflect.Value) reflect.Value {

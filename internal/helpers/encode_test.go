@@ -100,9 +100,60 @@ func TestEncodeValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := EncodeValue(tt.input)
+			result, err := EncodeValue(t.Context(), tt.input)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestEncodeValue_Unknown(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        attr.Value
+		expectedType attr.Type
+	}{
+		{
+			name:         "unknown string",
+			input:        types.StringUnknown(),
+			expectedType: types.StringType,
+		},
+		{
+			name:         "unknown number",
+			input:        types.NumberUnknown(),
+			expectedType: types.NumberType,
+		},
+		{
+			name:         "unknown bool",
+			input:        types.BoolUnknown(),
+			expectedType: types.BoolType,
+		},
+		{
+			name:         "unknown map",
+			input:        types.MapUnknown(types.StringType),
+			expectedType: types.MapType{ElemType: types.StringType},
+		},
+		{
+			name:         "unknown list",
+			input:        types.ListUnknown(types.StringType),
+			expectedType: types.ListType{ElemType: types.StringType},
+		},
+		{
+			name:         "unknown dynamic",
+			input:        types.DynamicUnknown(),
+			expectedType: types.DynamicType,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := EncodeValue(t.Context(), tt.input)
+			assert.NoError(t, err)
+			assert.True(t, IsUnknownSentinel(result), "expected UnknownSentinel")
+
+			sentinel, ok := result.(UnknownSentinel)
+			assert.True(t, ok, "expected result to be UnknownSentinel")
+			assert.Equal(t, tt.expectedType, sentinel.Type)
 		})
 	}
 }

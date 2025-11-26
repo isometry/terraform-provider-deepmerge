@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"context"
 	"math/big"
 	"testing"
 
@@ -11,8 +10,6 @@ import (
 )
 
 func TestDecodeScalar(t *testing.T) {
-	ctx := context.Background()
-
 	tests := []struct {
 		name     string
 		input    any
@@ -91,11 +88,47 @@ func TestDecodeScalar(t *testing.T) {
 			expected: nil,
 			hasError: true,
 		},
+		{
+			name:     "unknown string sentinel",
+			input:    UnknownSentinel{Type: types.StringType},
+			expected: types.StringUnknown(),
+			hasError: false,
+		},
+		{
+			name:     "unknown number sentinel",
+			input:    UnknownSentinel{Type: types.NumberType},
+			expected: types.NumberUnknown(),
+			hasError: false,
+		},
+		{
+			name:     "unknown bool sentinel",
+			input:    UnknownSentinel{Type: types.BoolType},
+			expected: types.BoolUnknown(),
+			hasError: false,
+		},
+		{
+			name:     "unknown map sentinel",
+			input:    UnknownSentinel{Type: types.MapType{ElemType: types.StringType}},
+			expected: types.MapUnknown(types.StringType),
+			hasError: false,
+		},
+		{
+			name:     "unknown list sentinel",
+			input:    UnknownSentinel{Type: types.ListType{ElemType: types.NumberType}},
+			expected: types.ListUnknown(types.NumberType),
+			hasError: false,
+		},
+		{
+			name:     "unknown dynamic sentinel",
+			input:    UnknownSentinel{Type: types.DynamicType},
+			expected: types.DynamicUnknown(),
+			hasError: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			decoded, diags := DecodeScalar(ctx, tt.input)
+			decoded, diags := DecodeScalar(t.Context(), tt.input)
 			if tt.hasError {
 				assert.True(t, diags.HasError())
 			} else {
