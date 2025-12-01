@@ -1233,3 +1233,78 @@ func TestMergoFunction_UnionListsWithNonComparableElements(t *testing.T) {
 		},
 	})
 }
+
+func TestMergoFunction_VariableOption(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(version.Must(version.NewVersion("1.8.0"))),
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+				variable "merge_mode" {
+					type    = string
+					default = "union"
+				}
+				locals {
+					map1 = { a = [1, 2, 3] }
+					map2 = { a = [3, 4, 5] }
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.map1, local.map2, var.merge_mode)
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"a": knownvalue.ListExact([]knownvalue.Check{
+								knownvalue.Int64Exact(1),
+								knownvalue.Int64Exact(2),
+								knownvalue.Int64Exact(3),
+								knownvalue.Int64Exact(4),
+								knownvalue.Int64Exact(5),
+							}),
+						}),
+					),
+				},
+			},
+		},
+	})
+}
+
+func TestMergoFunction_NestedVariableOption(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(version.Must(version.NewVersion("1.8.0"))),
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+				variable "merge_options" {
+					type = object({
+						mode = optional(string, "no_override")
+					})
+					default = {}
+				}
+				locals {
+					defaults    = { timeout = 30, retries = 3 }
+					user_config = { timeout = 60 }
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.defaults, local.user_config, var.merge_options.mode)
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"timeout": knownvalue.Int64Exact(30), // no_override keeps original
+							"retries": knownvalue.Int64Exact(3),
+						}),
+					),
+				},
+			},
+		},
+	})
+}

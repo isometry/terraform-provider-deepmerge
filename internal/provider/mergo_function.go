@@ -74,7 +74,7 @@ func (r MergoFunction) Run(ctx context.Context, req function.RunRequest, resp *f
 		}
 
 		// Handle unknown arguments - return unknown result
-		if arg.IsUnknown() {
+		if arg.IsUnknown() || arg.IsUnderlyingValueUnknown() {
 			resp.Error = function.ConcatFuncErrors(resp.Result.Set(ctx, types.DynamicUnknown()))
 			return
 		}
