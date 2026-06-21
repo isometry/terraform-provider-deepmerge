@@ -185,8 +185,12 @@ func deepMergeMaps(dst, src reflect.Value, appendSlice bool, uniqueSlice bool, n
 			// recursive call
 			newValue := deepMergeMaps(dstElem, srcElem, appendSlice, uniqueSlice, nullOverride)
 			dst.SetMapIndex(key, newValue)
-		} else if !srcElem.IsValid() && !nullOverride { // skip override of nil values only if nullOverride is false
-			continue
+		} else if !srcElem.IsValid() { // src value is null
+			if !nullOverride && dstElem.IsValid() {
+				continue // no_null_override: keep the existing value
+			}
+			// preserve the null key — an invalid Value would delete it (issue #138)
+			dst.SetMapIndex(key, reflect.Zero(dst.Type().Elem()))
 		} else if srcElem.Kind() == reflect.Slice && dstElem.Kind() == reflect.Slice && uniqueSlice { // handle union
 			dst.SetMapIndex(key, unionSlices(dstElem, srcElem))
 		} else if srcElem.Kind() == reflect.Slice && dstElem.Kind() == reflect.Slice && appendSlice { // handle append

@@ -695,6 +695,43 @@ func TestMergoFunction_NoOverrideWithNull(t *testing.T) {
 				},
 			},
 			{
+				// Regression test for issue #138: a root-level null in the first argument
+				// must be preserved under no_null_override, like nested nulls already are.
+				Config: `
+				locals {
+					map1 = {
+						key1 = null
+						key2 = "hello"
+						inside = {
+							nested_key1 = null
+							nested_key2 = "hello"
+						}
+					}
+					map2 = {
+						key2 = null
+						inside = {
+							nested_key2 = null
+						}
+					}
+				}
+				output "test" {
+					value = provider::deepmerge::mergo(local.map1, local.map2, "no_null_override")
+				}
+				`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownOutputValue("test",
+						knownvalue.MapExact(map[string]knownvalue.Check{
+							"key1": knownvalue.Null(),
+							"key2": knownvalue.StringExact("hello"),
+							"inside": knownvalue.MapExact(map[string]knownvalue.Check{
+								"nested_key1": knownvalue.Null(),
+								"nested_key2": knownvalue.StringExact("hello"),
+							}),
+						}),
+					),
+				},
+			},
+			{
 				Config: `
 				locals {
 					map1 = {
@@ -1131,7 +1168,10 @@ func TestMergoFunction_UnionListsWithDefaultNullBehavior(t *testing.T) {
 								knownvalue.StringExact("base"),
 								knownvalue.StringExact("override"),
 							}),
-							"new_field": knownvalue.StringExact("added"),
+							// Without no_null_override, null overrides to null and the key is kept
+							// (default merge semantics; see TestMergoFunction_Default).
+							"important_setting": knownvalue.Null(),
+							"new_field":         knownvalue.StringExact("added"),
 						}),
 					),
 				},
